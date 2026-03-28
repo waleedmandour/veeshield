@@ -1,0 +1,97 @@
+// VeeShield Prisma Schema
+// AI-Powered Security Suite for Windows 11
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User settings and preferences
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  name      String?
+  settings  Settings?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Application settings
+model Settings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  realTimeProtection    Boolean  @default(true)
+  autoUpdateDefinitions Boolean  @default(true)
+  cloudProtection       Boolean  @default(true)
+  puaProtection         Boolean  @default(true)
+  voiceAssistantEnabled Boolean  @default(true)
+  voiceFeedback         Boolean  @default(true)
+  scheduledScanEnabled  Boolean  @default(true)
+  scheduledScanDay      Int      @default(0)
+  scheduledScanHour     Int      @default(2)
+  deepCleanEnabled      Boolean  @default(false)
+  notificationsEnabled  Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Scan history
+model ScanHistory {
+  id                String    @id @default(cuid())
+  scanType          String
+  status            String
+  filesScanned      Int       @default(0)
+  threatsFound      Int       @default(0)
+  threatsQuarantined Int      @default(0)
+  duration          Int       @default(0)
+  scannedPaths      String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+}
+
+// Detected threats
+model Threat {
+  id            String    @id @default(cuid())
+  name          String
+  type          String
+  severity      String
+  filePath      String
+  fileSize      Int       @default(0)
+  fileHash      String?
+  status        String     @default("quarantined")
+  description   String?
+  detectionDate DateTime   @default(now())
+  actionDate    DateTime?
+  scanId        String?
+}
+
+// Quarantined files
+model Quarantine {
+  id             String    @id @default(cuid())
+  originalPath   String
+  quarantinePath String
+  fileName       String
+  fileSize       Int       @default(0)
+  fileHash       String?
+  threatName     String?
+  quarantinedAt  DateTime  @default(now())
+  restoredAt     DateTime?
+  threatId       String?
+}
+
+// Cleaning history
+model CleanHistory {
+  id             String    @id @default(cuid())
+  status         String
+  filesDeleted   Int       @default(0)
+  spaceFreed     Int       @default(0)
+  targetsCleaned String?
+  duration       Int       @default(0)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+}
