@@ -26,22 +26,20 @@ jobs:
       - name: Build Next.js
         run: npx next build
 
-      - name: Build Electron Windows Installer
+      - name: Build Electron Windows
         run: npx electron-builder --win --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Windows Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: VeeShield-Windows-Installer
-          path: dist/*.exe
+      - name: List build outputs
+        run: Get-ChildItem -Path dist -Recurse -File | Select-Object Name, Length
 
-      - name: Upload Windows Portable
+      - name: Upload all dist artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: VeeShield-Windows-Portable
-          path: dist/*.zip
+          name: VeeShield-Windows-Build
+          path: dist/
+          if-no-files-found: warn
 
   release:
     needs: build-windows
@@ -52,25 +50,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Windows Installer
+      - name: Download Windows build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: VeeShield-Windows-Installer
+          name: VeeShield-Windows-Build
           path: ./release-artifacts/
 
-      - name: Download Windows Portable
-        uses: actions/download-artifact@v4
-        with:
-          name: VeeShield-Windows-Portable
-          path: ./release-artifacts/
+      - name: List release artifacts
+        run: find ./release-artifacts -type f -name "*.exe" -o -name "*.zip" | head -20
 
-      - name: List artifacts
-        run: ls -la ./release-artifacts/
+      - name: Collect release files
+        run: |
+          mkdir -p ./to-release
+          # Copy NSIS installer
+          cp ./release-artifacts/*.exe ./to-release/ 2>/dev/null || true
+          # Copy portable zip
+          cp ./release-artifacts/*.zip ./to-release/ 2>/dev/null || true
+          # Copy blockmap for auto-update
+          cp ./release-artifacts/*.exe.blockmap ./to-release/ 2>/dev/null || true
+          # Copy latest.yml for auto-update
+          cp ./release-artifacts/latest*.yml ./to-release/ 2>/dev/null || true
+          ls -la ./to-release/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./release-artifacts/*
+          files: ./to-release/*
           generate_release_notes: true
           draft: false
           prerelease: false
