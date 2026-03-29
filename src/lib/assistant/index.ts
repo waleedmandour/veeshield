@@ -139,6 +139,69 @@ const INTENT_PATTERNS: Record<string, { patterns: RegExp[]; action: string }> = 
     ],
     action: 'check_updates'
   },
+  vpnConnect: {
+    patterns: [
+      /connect\s+(to\s+)?(the\s+)?vpn/i,
+      /turn\s+on\s+(the\s+)?vpn/i,
+      /enable\s+vpn/i,
+      /start\s+vpn/i,
+      /vpn\s+on/i,
+      /activate\s+vpn/i
+    ],
+    action: 'vpn_connect'
+  },
+  vpnDisconnect: {
+    patterns: [
+      /disconnect\s+(from\s+)?(the\s+)?vpn/i,
+      /turn\s+off\s+(the\s+)?vpn/i,
+      /disable\s+vpn/i,
+      /stop\s+vpn/i,
+      /vpn\s+off/i,
+      /deactivate\s+vpn/i
+    ],
+    action: 'vpn_disconnect'
+  },
+  vpnServer: {
+    patterns: [
+      /connect\s+(to\s+)?(?:united\s+states|us|usa|america)/i,
+      /connect\s+(to\s+)?(?:uk|united\s+kingdom|britain|london)/i,
+      /connect\s+(to\s+)?(?:germany|frankfurt|berlin)/i,
+      /connect\s+(to\s+)?(?:japan|tokyo)/i,
+      /connect\s+(to\s+)?(?:singapore)/i,
+      /connect\s+(to\s+)?(?:australia|sydney)/i,
+      /connect\s+(to\s+)?(?:canada|toronto)/i,
+      /connect\s+(to\s+)?(?:france|paris)/i,
+      /connect\s+(to\s+)?(?:netherlands|amsterdam)/i,
+      /connect\s+(to\s+)?(?:brazil)/i,
+      /connect\s+(to\s+)?(?:switzerland|zurich)/i,
+      /connect\s+(to\s+)?(?:sweden|stockholm)/i,
+      /connect\s+(to\s+)?(?:south\s+korea|seoul)/i,
+      /connect\s+(to\s+)?(?:india|mumbai|delhi)/i,
+      /connect\s+(to\s+)?(\w+(\s+\w+)?)/i
+    ],
+    action: 'vpn_connect_server'
+  },
+  vpnStatus: {
+    patterns: [
+      /vpn\s+status/i,
+      /(what|check)\s+(is\s+)?(my\s+)?vpn\s*(status|connection)/i,
+      /am\s+i\s+(using|on)\s+(a\s+)?vpn/i,
+      /check\s+(my\s+)?(ip|connection)/i,
+      /what('?s|\s+is)\s+my\s+ip/i
+    ],
+    action: 'vpn_status'
+  },
+  vpnProtocol: {
+    patterns: [
+      /switch\s+(to\s+)?wireguard/i,
+      /use\s+wireguard/i,
+      /switch\s+(to\s+)?openvpn/i,
+      /use\s+openvpn/i,
+      /change\s+(vpn\s+)?protocol/i,
+      /ikev2/i
+    ],
+    action: 'vpn_protocol'
+  },
   help: {
     patterns: [
       /help/i,
@@ -241,6 +304,32 @@ const RESPONSE_TEMPLATES: Record<string, string[]> = {
   check_updates: [
     "Checking for security definition updates... I'll install any available updates.",
     "Looking for the latest threat definitions. Keeping your protection current."
+  ],
+  vpn_connect: [
+    "Connecting to the VPN now. Your connection will be encrypted and secure.",
+    "Activating VPN. I'm establishing a secure tunnel to protect your privacy.",
+    "Turning on VPN. All your traffic will be encrypted."
+  ],
+  vpn_disconnect: [
+    "Disconnecting from VPN. Your internet traffic is no longer encrypted.",
+    "VPN has been turned off. You're now browsing directly.",
+    "Deactivating VPN connection."
+  ],
+  vpn_connect_server: [
+    "Connecting to VPN server in {location}. Establishing secure tunnel now.",
+    "Switching to {location} server. Encrypting your connection."
+  ],
+  vpn_status_connected: [
+    "You're connected to the VPN. Your traffic is encrypted and your IP address is hidden.",
+    "VPN is active. Your connection is secure and private."
+  ],
+  vpn_status_disconnected: [
+    "VPN is currently disconnected. Would you like me to connect you?",
+    "You're not using the VPN right now. Say 'connect VPN' to get started."
+  ],
+  vpn_protocol: [
+    "Switching VPN protocol. This may briefly reconnect your session.",
+    "Updating VPN protocol settings now."
   ],
   show_help: [
     "I can help you with: scanning for threats, cleaning up disk space, checking system status, managing quarantined files, scheduling scans, and updating definitions. Just ask!",
@@ -408,6 +497,43 @@ export function generateResponse(intent: string, context?: Record<string, unknow
         action: 'check_updates'
       };
     
+    case 'vpn_connect':
+      return {
+        text: getRandomResponse(RESPONSE_TEMPLATES.vpn_connect),
+        action: 'vpn_connect'
+      };
+    
+    case 'vpn_disconnect':
+      return {
+        text: getRandomResponse(RESPONSE_TEMPLATES.vpn_disconnect),
+        action: 'vpn_disconnect'
+      };
+    
+    case 'vpn_connect_server':
+      const location = context?.location || 'the selected server';
+      return {
+        text: getRandomResponse(RESPONSE_TEMPLATES.vpn_connect_server)
+          .replace('{location}', String(location)),
+        action: 'vpn_connect_server',
+        data: { location }
+      };
+    
+    case 'vpn_status':
+      const vpnActive = context?.vpnActive || false;
+      return {
+        text: getRandomResponse(
+          vpnActive ? RESPONSE_TEMPLATES.vpn_status_connected : RESPONSE_TEMPLATES.vpn_status_disconnected
+        ),
+        action: 'show_vpn',
+        data: { vpnActive }
+      };
+    
+    case 'vpn_protocol':
+      return {
+        text: getRandomResponse(RESPONSE_TEMPLATES.vpn_protocol),
+        action: 'vpn_protocol'
+      };
+    
     case 'show_help':
       return {
         text: getRandomResponse(RESPONSE_TEMPLATES.show_help),
@@ -487,6 +613,16 @@ export function getAvailableCommands(): Array<{ category: string; commands: stri
         'Am I protected',
         'Any threats',
         'Show history'
+      ]
+    },
+    {
+      category: 'VPN',
+      commands: [
+        'Connect VPN',
+        'Disconnect VPN',
+        'Connect to Japan',
+        'VPN status',
+        'Switch to WireGuard'
       ]
     },
     {

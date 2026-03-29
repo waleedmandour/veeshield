@@ -2,59 +2,485 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 160 84% 39%;
-    --radius: 0.5rem;
-  }
+/* ═══════════════════════════════════════════════════════════════════════════
+   VeeShield — Windows 11 Fluent Design System
+   Mica · Acrylic · Reveal Highlight · Segoe UI · Fluent Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 160 84% 39%;
-  }
+/* ─── CSS Custom Properties (WinUI 3 palette) ───────────────────────────────── */
+
+:root {
+  /* Accent */
+  --accent: 160 84% 39%;
+  --accent-foreground: 0 0% 100%;
+  --accent-hover: 160 84% 45%;
+  --accent-pressed: 160 84% 30%;
+  --accent-subtle: 160 84% 8%;
+
+  /* Backgrounds — Windows 11 Mica layers */
+  --bg-solid: 32 14% 7%;
+  --bg-mica: 32 14% 9%;
+  --bg-card: 32 12% 11%;
+  --bg-card-hover: 32 12% 14%;
+  --bg-elevated: 32 12% 13%;
+  --bg-acrylic: 32 10% 12%;
+  --bg-subtle: 32 10% 16%;
+  --bg-input: 32 10% 14%;
+
+  /* Text */
+  --text-primary: 0 0% 97%;
+  --text-secondary: 0 0% 72%;
+  --text-tertiary: 0 0% 53%;
+  --text-disabled: 0 0% 38%;
+  --text-on-accent: 0 0% 100%;
+
+  /* Borders */
+  --border-subtle: 0 0% 18%;
+  --border-card: 0 0% 15%;
+  --border-focus: 160 84% 39%;
+  --border-accent: 160 84% 39%;
+
+  /* Status */
+  --success: 142 76% 36%;
+  --warning: 38 92% 50%;
+  --error: 0 84% 60%;
+  --info: 199 89% 48%;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Transitions */
+  --transition-fast: 100ms cubic-bezier(0.33, 0, 0.67, 1);
+  --transition-normal: 167ms cubic-bezier(0.33, 0, 0.67, 1);
+  --transition-slow: 250ms cubic-bezier(0.33, 0, 0.67, 1);
+  --transition-decelerate: 250ms cubic-bezier(0, 0, 0, 1);
+  --transition-accelerate: 150ms cubic-bezier(1, 0, 1, 1);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.16), 0 2px 4px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 16px rgba(0,0,0,0.20), 0 4px 8px rgba(0,0,0,0.12);
+  --shadow-flyout: 0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.16);
+  --shadow-dialog: 0 32px 64px rgba(0,0,0,0.36), 0 16px 32px rgba(0,0,0,0.24);
+
+  /* Acrylic noise */
+  --noise-opacity: 0.03;
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-[hsl(var(--border-subtle))];
   }
-  body {
-    @apply bg-background text-foreground;
+
+  html {
+    font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  body {
+    @apply bg-[hsl(var(--bg-solid))] text-[hsl(var(--text-primary))];
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Scrollbar — Windows 11 thin */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 28%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(0 0% 38%);
+  }
+
+  /* Selection — Accent color */
+  ::selection {
+    background: hsl(var(--accent) / 0.3);
+    color: white;
+  }
+
+  /* Focus visual — WinUI style */
+  :focus-visible {
+    outline: 2px solid hsl(var(--accent));
+    outline-offset: 1px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ─── Fluent Design Utilities ────────────────────────────────────────────────── */
+
+@layer components {
+  /* Mica background (subtle texture from desktop wallpaper) */
+  .bg-mica {
+    background: hsl(var(--bg-mica));
+    backdrop-filter: blur(0px);
+  }
+
+  /* Acrylic — blurred translucent layer */
+  .bg-acrylic {
+    background: hsl(var(--bg-acrylic) / 0.75);
+    backdrop-filter: blur(32px) saturate(125%);
+    -webkit-backdrop-filter: blur(32px) saturate(125%);
+  }
+
+  .bg-acrylic-heavy {
+    background: hsl(var(--bg-card) / 0.85);
+    backdrop-filter: blur(64px) saturate(150%);
+    -webkit-backdrop-filter: blur(64px) saturate(150%);
+  }
+
+  /* Card — WinUI CardStyle */
+  .win-card {
+    background: hsl(var(--bg-card) / 0.6);
+    backdrop-filter: blur(16px) saturate(110%);
+    border: 1px solid hsl(var(--border-card) / 0.5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-normal);
+  }
+
+  .win-card:hover {
+    background: hsl(var(--bg-card-hover) / 0.7);
+    border-color: hsl(var(--border-subtle) / 0.8);
+    box-shadow: var(--shadow-md);
+  }
+
+  .win-card-elevated {
+    background: hsl(var(--bg-elevated) / 0.9);
+    border: 1px solid hsl(var(--border-card) / 0.6);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Fluent button base */
+  .win-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 20px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .win-btn-primary {
+    background: hsl(var(--accent));
+    color: hsl(var(--text-on-accent));
+    border-color: transparent;
+  }
+  .win-btn-primary:hover {
+    background: hsl(var(--accent-hover));
+  }
+  .win-btn-primary:active {
+    background: hsl(var(--accent-pressed));
+    transform: scale(0.98);
+  }
+
+  .win-btn-secondary {
+    background: hsl(var(--bg-subtle) / 0.5);
+    color: hsl(var(--text-primary));
+    border-color: hsl(var(--border-subtle) / 0.6);
+  }
+  .win-btn-secondary:hover {
+    background: hsl(var(--bg-subtle) / 0.8);
+  }
+  .win-btn-secondary:active {
+    background: hsl(var(--bg-card));
+    transform: scale(0.98);
+  }
+
+  .win-btn-subtle {
+    background: transparent;
+    color: hsl(var(--text-secondary));
+    border-color: transparent;
+  }
+  .win-btn-subtle:hover {
+    background: hsl(var(--bg-subtle) / 0.4);
+  }
+
+  /* Fluent Toggle / Switch */
+  .win-toggle {
+    width: 40px;
+    height: 20px;
+    border-radius: 10px;
+    background: hsl(0 0% 32%);
+    position: relative;
+    cursor: pointer;
+    transition: background var(--transition-normal);
+    flex-shrink: 0;
+  }
+  .win-toggle.active {
+    background: hsl(var(--accent));
+  }
+  .win-toggle::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    top: 4px;
+    left: 4px;
+    transition: transform var(--transition-normal);
+  }
+  .win-toggle.active::after {
+    transform: translateX(20px);
+  }
+
+  /* Fluent Badge */
+  .win-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 16px;
+  }
+  .win-badge-success {
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
+  }
+  .win-badge-warning {
+    background: hsl(var(--warning) / 0.15);
+    color: hsl(var(--warning));
+  }
+  .win-badge-error {
+    background: hsl(var(--error) / 0.15);
+    color: hsl(var(--error));
+  }
+  .win-badge-info {
+    background: hsl(var(--info) / 0.15);
+    color: hsl(var(--info));
+  }
+  .win-badge-neutral {
+    background: hsl(0 0% 20%);
+    color: hsl(var(--text-secondary));
+  }
+
+  /* Reveal highlight effect */
+  .reveal-highlight {
+    position: relative;
+    overflow: hidden;
+  }
+  .reveal-highlight::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(
+      400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      hsl(var(--accent) / 0.06),
+      transparent 40%
+    );
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .reveal-highlight:hover::before {
+    opacity: 1;
+  }
+
+  /* Navigation rail item */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    color: hsl(var(--text-secondary));
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+  }
+  .nav-item:hover {
+    background: hsl(var(--bg-subtle) / 0.5);
+    color: hsl(var(--text-primary));
+  }
+  .nav-item.active {
+    background: hsl(var(--accent-subtle));
+    color: hsl(var(--accent));
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 16px;
+    border-radius: 0 2px 2px 0;
+    background: hsl(var(--accent));
+  }
+
+  /* Fluent Progress ring */
+  .progress-ring {
+    transform: rotate(-90deg);
+  }
+  .progress-ring circle {
+    transition: stroke-dashoffset var(--transition-slow);
+  }
+
+  /* Tooltip */
+  .win-tooltip {
+    background: hsl(var(--bg-elevated));
+    border: 1px solid hsl(var(--border-card));
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    font-size: 12px;
+    color: hsl(var(--text-primary));
+    box-shadow: var(--shadow-flyout);
+  }
+
+  /* Divider */
+  .win-divider {
+    height: 1px;
+    background: hsl(var(--border-subtle) / 0.5);
+    margin: 8px 0;
+  }
+}
+
+/* ─── Keyframe Animations ────────────────────────────────────────────────────── */
+
+@layer utilities {
+  /* Fluent entrance — fade up */
+  @keyframes fluent-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fluent-in {
+    animation: fluent-fade-in 250ms cubic-bezier(0, 0, 0, 1) both;
+  }
+
+  /* Fluent entrance — scale */
+  @keyframes fluent-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .animate-fluent-scale {
+    animation: fluent-scale-in 200ms cubic-bezier(0, 0, 0, 1) both;
+  }
+
+  /* Pulse glow for connected state */
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--accent) / 0.2), 0 0 60px hsl(var(--accent) / 0.05);
+    }
+    50% {
+      box-shadow: 0 0 30px hsl(var(--accent) / 0.35), 0 0 80px hsl(var(--accent) / 0.1);
+    }
+  }
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  /* VPN ring animation */
+  @keyframes vpn-ring-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-ring-spin {
+    animation: vpn-ring-spin 2s linear infinite;
+  }
+
+  @keyframes vpn-ring-dash {
+    to { stroke-dashoffset: 0; }
+  }
+  .animate-ring-dash {
+    animation: vpn-ring-dash 1.5s ease-in-out infinite;
+  }
+
+  /* Shimmer loading */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 0%, hsl(var(--bg-subtle) / 0.5) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Data flow animation for network */
+  @keyframes data-flow {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-20px); opacity: 0; }
+  }
+  .animate-data-flow {
+    animation: data-flow 1.5s ease-in-out infinite;
+  }
+
+  /* Breathe animation for status indicators */
+  @keyframes breathe {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  .animate-breathe {
+    animation: breathe 2s ease-in-out infinite;
+  }
+
+  /* Slide in from right */
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  .animate-slide-in-right {
+    animation: slide-in-right 250ms cubic-bezier(0, 0, 0, 1) both;
+  }
+
+  /* Tab content transition */
+  @keyframes tab-content-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-tab-enter {
+    animation: tab-content-enter 200ms cubic-bezier(0, 0, 0, 1) both;
   }
 }

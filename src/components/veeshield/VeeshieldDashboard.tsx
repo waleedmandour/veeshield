@@ -1,21 +1,12 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { 
-  Shield, ShieldCheck, ShieldAlert, ShieldX, 
-  Bug, Lock, Trash2, Volume2, Settings, 
-  Activity, AlertTriangle, CheckCircle2, XCircle,
-  FileSearch, HardDrive, Clock, TrendingUp, Network, RefreshCw
+import {
+  Shield, ShieldCheck, ShieldAlert, FileSearch, HardDrive,
+  Trash2, Volume2, Settings, AlertTriangle, Lock, Network,
+  RefreshCw, Globe, Activity, Bug, ChevronRight, Wifi,
+  Power
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 
 // Import components
@@ -27,6 +18,11 @@ import { StatusCards } from '@/components/veeshield/StatusCards';
 import { QuarantinePanel } from '@/components/veeshield/QuarantinePanel';
 import { NetworkPanel } from '@/components/veeshield/NetworkPanel';
 import { UpdateNotification } from '@/components/veeshield/UpdateNotification';
+import { VPNPanel } from '@/components/veeshield/VPNPanel';
+
+import { vpnEngine } from '@/lib/services/vpn-service';
+
+// ─── Types ───────────────────────────────────────────────────────────────────────
 
 export interface ProtectionStatus {
   status: 'protected' | 'at_risk' | 'scanning' | 'cleaning';
@@ -36,6 +32,27 @@ export interface ProtectionStatus {
   realTimeProtection: boolean;
   autoUpdate: boolean;
 }
+
+type TabId = 'dashboard' | 'scan' | 'clean' | 'threats' | 'quarantine' | 'network' | 'vpn' | 'settings';
+
+interface NavItem {
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: Shield },
+  { id: 'scan', label: 'Scan', icon: Bug },
+  { id: 'clean', label: 'Clean', icon: Trash2 },
+  { id: 'threats', label: 'Threats', icon: AlertTriangle },
+  { id: 'quarantine', label: 'Quarantine', icon: Lock },
+  { id: 'network', label: 'Network', icon: Network },
+  { id: 'vpn', label: 'VPN', icon: Globe },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────────
 
 export function VeeshieldDashboard() {
   const [protectionStatus, setProtectionStatus] = useState<ProtectionStatus>({
@@ -47,9 +64,10 @@ export function VeeshieldDashboard() {
     autoUpdate: true
   });
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState('1.1.0');
+  const [appVersion, setAppVersion] = useState('2.0.0');
+  const [navCollapsed, setNavCollapsed] = useState(false);
 
   // Get app version from Electron if available
   useEffect(() => {
@@ -95,7 +113,8 @@ export function VeeshieldDashboard() {
     }
   }, []);
 
-  const handleVoiceCommand = useCallback((action: string, data?: Record<string, unknown>) => {
+  // Handle voice commands — including VPN
+  const handleVoiceCommand = useCallback(async (action: string, data?: Record<string, unknown>) => {
     switch (action) {
       case 'quick_scan':
         handleQuickScan();
@@ -113,466 +132,367 @@ export function VeeshieldDashboard() {
         setActiveTab('threats');
         break;
       case 'show_history':
-        setActiveTab('history');
+        setActiveTab('dashboard');
+        break;
+      case 'show_quarantine':
+        setActiveTab('quarantine');
         break;
       case 'open_settings':
         setActiveTab('settings');
         break;
       case 'show_help':
-        toast.info('Say "scan my computer", "clean up files", or "check status"');
+        toast.info('Say "scan my computer", "clean up files", "connect VPN", or "check status"');
         break;
+      case 'vpn_connect':
+        setActiveTab('vpn');
+        setTimeout(() => vpnEngine.connect(), 500);
+        break;
+      case 'vpn_disconnect':
+        vpnEngine.disconnect();
+        toast.success('VPN disconnected');
+        break;
+      case 'vpn_connect_server': {
+        setActiveTab('vpn');
+        const location = String(data?.location || '').toLowerCase();
+        const allServers = vpnEngine.getAllServers();
+        const match = allServers.find(s =>
+          s.city.toLowerCase().includes(location) ||
+          s.country.toLowerCase().includes(location) ||
+          s.countryCode.toLowerCase().includes(location)
+        );
+        if (match) {
+          setTimeout(() => vpnEngine.connect(match.id), 500);
+        } else {
+          toast.info(`Could not find a server for "${location}". Showing VPN panel.`);
+        }
+        break;
+      }
+      case 'show_vpn':
+        setActiveTab('vpn');
+        break;
+      case 'vpn_protocol': {
+        const transcript = String(data?.location || '').toLowerCase();
+        if (transcript.includes('wireguard')) vpnEngine.setProtocol('wireguard');
+        else if (transcript.includes('udp')) vpnEngine.setProtocol('openvpn_udp');
+        else if (transcript.includes('tcp')) vpnEngine.setProtocol('openvpn_tcp');
+        else if (transcript.includes('ikev2')) vpnEngine.setProtocol('ikev2');
+        toast.success('Protocol updated');
+        break;
+      }
     }
   }, [handleQuickScan, handleQuickClean]);
 
   const getStatusIcon = () => {
     switch (protectionStatus.status) {
-      case 'protected':
-        return <ShieldCheck className="h-16 w-16 text-green-500" />;
-      case 'at_risk':
-        return <ShieldAlert className="h-16 w-16 text-yellow-500" />;
-      case 'scanning':
-        return <FileSearch className="h-16 w-16 text-blue-500 animate-pulse" />;
-      case 'cleaning':
-        return <Trash2 className="h-16 w-16 text-purple-500 animate-pulse" />;
-      default:
-        return <Shield className="h-16 w-16 text-gray-500" />;
+      case 'protected': return <ShieldCheck className="w-14 h-14 text-emerald-400" />;
+      case 'at_risk': return <ShieldAlert className="w-14 h-14 text-amber-400" />;
+      case 'scanning': return <FileSearch className="w-14 h-14 text-cyan-400 animate-pulse" />;
+      case 'cleaning': return <Trash2 className="w-14 h-14 text-purple-400 animate-pulse" />;
+      default: return <Shield className="w-14 h-14 text-white/30" />;
     }
   };
 
-  const getStatusText = () => {
-    switch (protectionStatus.status) {
-      case 'protected':
-        return { title: 'Protected', description: 'Your system is secure', color: 'text-green-500' };
-      case 'at_risk':
-        return { title: 'At Risk', description: 'Action recommended', color: 'text-yellow-500' };
-      case 'scanning':
-        return { title: 'Scanning', description: 'Checking for threats...', color: 'text-blue-500' };
-      case 'cleaning':
-        return { title: 'Cleaning', description: 'Removing junk files...', color: 'text-purple-500' };
-      default:
-        return { title: 'Unknown', description: 'Status unavailable', color: 'text-gray-500' };
-    }
+  const statusText: Record<string, { title: string; sub: string; color: string }> = {
+    protected: { title: 'Protected', sub: 'Your system is secure', color: 'text-emerald-400' },
+    at_risk: { title: 'Attention Needed', sub: 'Review recommended', color: 'text-amber-400' },
+    scanning: { title: 'Scanning', sub: 'Checking for threats...', color: 'text-cyan-400' },
+    cleaning: { title: 'Cleaning', sub: 'Removing junk files...', color: 'text-purple-400' },
   };
-
-  const statusInfo = getStatusText();
+  const st = statusText[protectionStatus.status];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <header className="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Shield className="h-10 w-10 text-emerald-400" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                  VeeShield
-                </h1>
-                <p className="text-xs text-slate-400">AI-Powered Security Suite</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsVoiceAssistantOpen(!isVoiceAssistantOpen)}
-                className="relative text-slate-300 hover:text-white hover:bg-slate-700"
-              >
-                <Volume2 className="h-5 w-5" />
-                {isVoiceAssistantOpen && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-                )}
-              </Button>
-              <Badge 
-                variant="outline" 
-                className="border-emerald-500/50 text-emerald-400"
-              >
-                v{appVersion}
-              </Badge>
-            </div>
+    <div className="h-screen flex flex-col bg-[hsl(var(--bg-solid))] overflow-hidden">
+      {/* ─── Title Bar (Windows 11 frame) ──────────────────────────────────── */}
+      <header className="h-9 flex items-center justify-between px-3 bg-[hsl(var(--bg-mica))] border-b border-[hsl(var(--border-subtle)/0.3)] flex-shrink-0 select-none">
+        <div className="flex items-center gap-2.5">
+          <div className="relative w-5 h-5 flex items-center justify-center">
+            <Shield className="w-4 h-4 text-hsl(var(--accent))" />
+            {protectionStatus.status === 'protected' && (
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full animate-breathe" />
+            )}
           </div>
+          <span className="text-xs font-semibold text-[hsl(var(--text-secondary))]">VeeShield</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsVoiceAssistantOpen(!isVoiceAssistantOpen)}
+            className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+              isVoiceAssistantOpen ? 'bg-hsl(var(--accent)/0.15) text-hsl(var(--accent))' : 'text-[hsl(var(--text-tertiary))] hover:bg-white/[0.05]'
+            }`}
+          >
+            <Volume2 className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-[10px] text-[hsl(var(--text-disabled))]">v{appVersion}</span>
         </div>
       </header>
 
+      <div className="flex flex-1 overflow-hidden">
+        {/* ─── Navigation Rail (Win11 style) ────────────────────────────────── */}
+        <nav className="w-16 flex flex-col items-center py-3 gap-0.5 bg-[hsl(var(--bg-mica))] border-r border-[hsl(var(--border-subtle)/0.3)] flex-shrink-0">
+          {NAV_ITEMS.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            // VPN badge for connected state
+            const showVPNBadge = item.id === 'vpn' && vpnEngine.getState().status === 'connected';
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`relative w-12 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-150 group ${
+                  isActive
+                    ? 'bg-hsl(var(--accent)/0.12)'
+                    : 'text-[hsl(var(--text-tertiary))] hover:bg-white/[0.04] hover:text-[hsl(var(--text-secondary))]'
+                }`}
+                title={item.label}
+              >
+                <div className="relative">
+                  <Icon className={`w-[18px] h-[18px] transition-colors ${
+                    isActive ? 'text-hsl(var(--accent))' : ''
+                  }`} />
+                  {showVPNBadge && (
+                    <div className="absolute -top-1 -right-1.5 w-2 h-2 bg-emerald-400 rounded-full animate-breathe" />
+                  )}
+                </div>
+                <span className={`text-[9px] leading-none transition-colors ${
+                  isActive ? 'text-hsl(var(--accent)) font-medium' : ''
+                }`}>
+                  {item.label}
+                </span>
+                {isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r bg-hsl(var(--accent))" />
+                )}
+              </button>
+            );
+          })}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Voice Assistant Toggle */}
+          <button
+            onClick={() => setIsVoiceAssistantOpen(!isVoiceAssistantOpen)}
+            className={`relative w-12 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
+              isVoiceAssistantOpen
+                ? 'bg-red-500/10 text-red-400'
+                : 'text-[hsl(var(--text-tertiary))] hover:bg-white/[0.04]'
+            }`}
+            title="Voice Assistant"
+          >
+            <div className="relative">
+              <Volume2 className="w-[18px] h-[18px]" />
+              {isVoiceAssistantOpen && (
+                <div className="absolute -top-1 -right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </div>
+            <span className="text-[9px] leading-none">Voice</span>
+          </button>
+        </nav>
+
+        {/* ─── Main Content Area ───────────────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="p-6 max-w-[1200px] mx-auto">
+            {/* Tab header bar */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const CurrentIcon = NAV_ITEMS.find(n => n.id === activeTab)?.icon || Shield;
+                  return <CurrentIcon className="w-5 h-5 text-hsl(var(--accent))" />;
+                })()}
+                <h1 className="text-lg font-semibold text-[hsl(var(--text-primary))]">
+                  {NAV_ITEMS.find(n => n.id === activeTab)?.label || 'Dashboard'}
+                </h1>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-[hsl(var(--text-tertiary))]">
+                <span>Definitions: v2024.03.15</span>
+                <span className="text-hsl(var(--border-subtle))">·</span>
+                <span>Engine: v2.1.0</span>
+              </div>
+            </div>
+
+            {/* ─── Tab Content ────────────────────────────────────────────── */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6 animate-tab-enter">
+                {/* Hero Status Card */}
+                <div className="win-card p-8 reveal-highlight">
+                  <div className="flex flex-col md:flex-row items-center gap-8">
+                    <div className="flex-shrink-0">
+                      {getStatusIcon()}
+                    </div>
+                    <div className="flex-1 text-center md:text-left">
+                      <h2 className={`text-2xl font-bold ${st.color}`}>{st.title}</h2>
+                      <p className="text-sm text-[hsl(var(--text-secondary))] mt-1">{st.sub}</p>
+                      <div className="flex flex-wrap gap-2 mt-4 justify-center md:justify-start">
+                        <button onClick={handleQuickScan} disabled={protectionStatus.status === 'scanning'}
+                          className="win-btn win-btn-primary text-sm px-5 py-2">
+                          <FileSearch className="w-4 h-4" /> Quick Scan
+                        </button>
+                        <button onClick={handleQuickClean} disabled={protectionStatus.status === 'cleaning'}
+                          className="win-btn win-btn-secondary text-sm px-5 py-2">
+                          <Trash2 className="w-4 h-4" /> Quick Clean
+                        </button>
+                        <button onClick={() => setIsVoiceAssistantOpen(true)}
+                          className="win-btn win-btn-secondary text-sm px-5 py-2">
+                          <Volume2 className="w-4 h-4" /> Hey Vee
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 flex-shrink-0">
+                      <div className="text-center p-3 rounded-lg bg-white/[0.03] border border-[hsl(var(--border-subtle)/0.3)]">
+                        <p className="text-xl font-bold text-emerald-400">{protectionStatus.threatsBlocked}</p>
+                        <p className="text-[10px] text-[hsl(var(--text-tertiary))]">Blocked</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-white/[0.03] border border-[hsl(var(--border-subtle)/0.3)]">
+                        <p className="text-xl font-bold text-cyan-400">{protectionStatus.filesScanned.toLocaleString()}</p>
+                        <p className="text-[10px] text-[hsl(var(--text-tertiary))]">Scanned</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Cards */}
+                <StatusCards protectionStatus={protectionStatus} setProtectionStatus={setProtectionStatus} />
+              </div>
+            )}
+
+            {activeTab === 'scan' && <div className="animate-tab-enter"><ScanPanel /></div>}
+            {activeTab === 'clean' && <div className="animate-tab-enter"><CleanPanel /></div>}
+            {activeTab === 'threats' && <div className="animate-tab-enter"><ThreatList /></div>}
+            {activeTab === 'quarantine' && <div className="animate-tab-enter"><QuarantinePanel /></div>}
+            {activeTab === 'network' && <div className="animate-tab-enter"><NetworkPanel /></div>}
+            {activeTab === 'vpn' && <div className="animate-tab-enter h-[calc(100vh-120px)]"><VPNPanel /></div>}
+
+            {activeTab === 'settings' && (
+              <div className="space-y-6 animate-tab-enter max-w-2xl">
+                {/* Protection */}
+                <div className="win-card p-5">
+                  <h3 className="text-sm font-semibold text-[hsl(var(--text-primary))] mb-4 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-hsl(var(--accent))" /> Protection
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Real-time Protection', desc: 'Monitor files and activities', enabled: protectionStatus.realTimeProtection, toggle: () => setProtectionStatus(p => ({ ...p, realTimeProtection: !p.realTimeProtection })) },
+                      { label: 'Auto-update Definitions', desc: 'Download latest threat signatures', enabled: protectionStatus.autoUpdate, toggle: () => setProtectionStatus(p => ({ ...p, autoUpdate: !p.autoUpdate })) },
+                      { label: 'Cloud-assisted Protection', desc: 'Use cloud intelligence for detection', enabled: true, toggle: () => {} },
+                      { label: 'PUA Protection', desc: 'Block potentially unwanted applications', enabled: true, toggle: () => {} },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/[0.02] transition-colors">
+                        <div>
+                          <p className="text-sm text-[hsl(var(--text-primary))]">{item.label}</p>
+                          <p className="text-[11px] text-[hsl(var(--text-tertiary))]">{item.desc}</p>
+                        </div>
+                        <button onClick={item.toggle}
+                          className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${item.enabled ? 'bg-hsl(var(--accent))' : 'bg-white/10'}`}>
+                          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${item.enabled ? 'left-[18px]' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Voice */}
+                <div className="win-card p-5">
+                  <h3 className="text-sm font-semibold text-[hsl(var(--text-primary))] mb-4 flex items-center gap-2">
+                    <Volume2 className="w-4 h-4 text-hsl(var(--accent))" /> Voice Assistant
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Enable "Hey Vee" wake word', enabled: true },
+                      { label: 'Voice feedback', enabled: true },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/[0.02] transition-colors">
+                        <p className="text-sm text-[hsl(var(--text-primary))]">{item.label}</p>
+                        <button className={`w-9 h-5 rounded-full transition-colors relative ${item.enabled ? 'bg-hsl(var(--accent))' : 'bg-white/10'}`}>
+                          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${item.enabled ? 'left-[18px]' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Updates */}
+                <div className="win-card p-5">
+                  <h3 className="text-sm font-semibold text-[hsl(var(--text-primary))] mb-4 flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-hsl(var(--accent))" /> Application Updates
+                  </h3>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] mb-3">
+                    <div>
+                      <p className="text-sm text-[hsl(var(--text-primary))]">Current Version</p>
+                      <p className="text-[11px] text-[hsl(var(--text-tertiary))]">VeeShield v{appVersion}</p>
+                    </div>
+                    <span className="win-badge win-badge-success text-[10px]">Up to date</span>
+                  </div>
+                  <div className="space-y-3 mb-3">
+                    {[
+                      { label: 'Auto-check for Updates', desc: 'Every 4 hours, download silently', enabled: true },
+                      { label: 'Install on Quit', desc: 'Apply updates when closing', enabled: true },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/[0.02] transition-colors">
+                        <div>
+                          <p className="text-sm text-[hsl(var(--text-primary))]">{item.label}</p>
+                          <p className="text-[11px] text-[hsl(var(--text-tertiary))]">{item.desc}</p>
+                        </div>
+                        <button className={`w-9 h-5 rounded-full transition-colors relative ${item.enabled ? 'bg-hsl(var(--accent))' : 'bg-white/10'}`}>
+                          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${item.enabled ? 'left-[18px]' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+                        const result = await (window as any).electronAPI.checkForUpdates();
+                        if (result.updateAvailable) {
+                          toast.info(`Update available: v${result.updateInfo.version}`);
+                        } else {
+                          toast.success('Already on the latest version');
+                        }
+                      } else {
+                        toast.info('Updates managed automatically every 4 hours');
+                      }
+                    }}
+                    className="win-btn win-btn-secondary w-full text-sm py-2"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Check for Updates Now
+                  </button>
+                </div>
+
+                {/* Scheduled Scans */}
+                <div className="win-card p-5">
+                  <h3 className="text-sm font-semibold text-[hsl(var(--text-primary))] mb-4 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-hsl(var(--accent))" /> Scheduled Scans
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Automatic Weekly Scan', desc: 'Full scan every Sunday at 2:00 AM', enabled: true },
+                      { label: 'Automatic Cleanup', desc: 'Clean temp files every week', enabled: false },
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/[0.02] transition-colors">
+                        <div>
+                          <p className="text-sm text-[hsl(var(--text-primary))]">{item.label}</p>
+                          <p className="text-[11px] text-[hsl(var(--text-tertiary))]">{item.desc}</p>
+                        </div>
+                        <button className={`w-9 h-5 rounded-full transition-colors relative ${item.enabled ? 'bg-hsl(var(--accent))' : 'bg-white/10'}`}>
+                          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${item.enabled ? 'left-[18px]' : 'left-0.5'}`} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
       {/* Voice Assistant Overlay */}
       {isVoiceAssistantOpen && (
-        <VoiceAssistant
-          onCommand={handleVoiceCommand}
-          onClose={() => setIsVoiceAssistantOpen(false)}
-        />
+        <VoiceAssistant onCommand={handleVoiceCommand} onClose={() => setIsVoiceAssistantOpen(false)} />
       )}
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-800/50 border border-slate-700/50">
-            <TabsTrigger 
-              value="dashboard" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger 
-              value="scan" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <Bug className="h-4 w-4 mr-2" />
-              Scan
-            </TabsTrigger>
-            <TabsTrigger 
-              value="clean" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clean
-            </TabsTrigger>
-            <TabsTrigger 
-              value="threats" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Threats
-            </TabsTrigger>
-            <TabsTrigger 
-              value="quarantine" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <Lock className="h-4 w-4 mr-2" />
-              Quarantine
-            </TabsTrigger>
-            <TabsTrigger 
-              value="network" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <Network className="h-4 w-4 mr-2" />
-              Network
-            </TabsTrigger>
-            <TabsTrigger 
-              value="settings" 
-              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* Status Hero */}
-            <Card className="bg-gradient-to-r from-slate-800/80 to-slate-800/40 border-slate-700/50 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <div className="flex flex-col md:flex-row items-center gap-8">
-                  <div className="flex-shrink-0">
-                    {getStatusIcon()}
-                  </div>
-                  
-                  <div className="flex-1 text-center md:text-left">
-                    <h2 className={`text-3xl font-bold ${statusInfo.color}`}>
-                      {statusInfo.title}
-                    </h2>
-                    <p className="text-slate-400 mt-1">{statusInfo.description}</p>
-                    
-                    <div className="flex flex-wrap gap-4 mt-4 justify-center md:justify-start">
-                      <Button 
-                        onClick={handleQuickScan}
-                        disabled={protectionStatus.status === 'scanning'}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                      >
-                        <FileSearch className="h-4 w-4 mr-2" />
-                        Quick Scan
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={handleQuickClean}
-                        disabled={protectionStatus.status === 'cleaning'}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Quick Clean
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={() => setIsVoiceAssistantOpen(true)}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                      >
-                        <Volume2 className="h-4 w-4 mr-2" />
-                        Hey Vee
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-shrink-0 grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-slate-700/30 rounded-lg">
-                      <p className="text-2xl font-bold text-emerald-400">{protectionStatus.threatsBlocked}</p>
-                      <p className="text-xs text-slate-400">Threats Blocked</p>
-                    </div>
-                    <div className="text-center p-4 bg-slate-700/30 rounded-lg">
-                      <p className="text-2xl font-bold text-cyan-400">{protectionStatus.filesScanned.toLocaleString()}</p>
-                      <p className="text-xs text-slate-400">Files Scanned</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Status Cards */}
-            <StatusCards protectionStatus={protectionStatus} setProtectionStatus={setProtectionStatus} />
-          </TabsContent>
-
-          {/* Scan Tab */}
-          <TabsContent value="scan">
-            <ScanPanel />
-          </TabsContent>
-
-          {/* Clean Tab */}
-          <TabsContent value="clean">
-            <CleanPanel />
-          </TabsContent>
-
-          {/* Threats Tab */}
-          <TabsContent value="threats">
-            <ThreatList />
-          </TabsContent>
-
-          {/* Quarantine Tab */}
-          <TabsContent value="quarantine">
-            <QuarantinePanel />
-          </TabsContent>
-
-          {/* Network Tab */}
-          <TabsContent value="network">
-            <NetworkPanel />
-          </TabsContent>
-
-          {/* Settings Tab */}
-          <TabsContent value="settings">
-            <Card className="bg-slate-800/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Settings
-                </CardTitle>
-                <CardDescription>
-                  Configure your protection preferences
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Protection Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Protection</h3>
-                  
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Real-time Protection</Label>
-                      <p className="text-sm text-slate-400">
-                        Monitor files and activities in real-time
-                      </p>
-                    </div>
-                    <Switch 
-                      checked={protectionStatus.realTimeProtection}
-                      onCheckedChange={(checked) => 
-                        setProtectionStatus(prev => ({ ...prev, realTimeProtection: checked }))
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Auto-update Definitions</Label>
-                      <p className="text-sm text-slate-400">
-                        Automatically download the latest threat definitions
-                      </p>
-                    </div>
-                    <Switch 
-                      checked={protectionStatus.autoUpdate}
-                      onCheckedChange={(checked) => 
-                        setProtectionStatus(prev => ({ ...prev, autoUpdate: checked }))
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Cloud-assisted Protection</Label>
-                      <p className="text-sm text-slate-400">
-                        Use cloud intelligence for enhanced detection
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">PUA Protection</Label>
-                      <p className="text-sm text-slate-400">
-                        Block potentially unwanted applications
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-
-                <Separator className="bg-slate-700" />
-
-                {/* Voice Assistant Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Voice Assistant</h3>
-                  
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Enable "Hey Vee"</Label>
-                      <p className="text-sm text-slate-400">
-                        Activate voice assistant with wake word
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Voice Feedback</Label>
-                      <p className="text-sm text-slate-400">
-                        Vee will respond with spoken feedback
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-
-                <Separator className="bg-slate-700" />
-
-                {/* Update Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5" />
-                    Application Updates
-                  </h3>
-
-                  <div className="p-4 bg-slate-700/30 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-white">Current Version</Label>
-                        <p className="text-sm text-slate-400">VeeShield v{appVersion}</p>
-                      </div>
-                      <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Up to date
-                      </Badge>
-                    </div>
-
-                    <Separator className="bg-slate-600/50" />
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-white">Auto-check for Updates</Label>
-                        <p className="text-sm text-slate-400">
-                          Check every 4 hours and download silently
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-white">Install on Quit</Label>
-                        <p className="text-sm text-slate-400">
-                          Apply updates automatically when VeeShield closes
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-white">Allow Pre-release Versions</Label>
-                        <p className="text-sm text-slate-400">
-                          Receive beta and dev builds for early testing
-                        </p>
-                      </div>
-                      <Switch />
-                    </div>
-
-                    <Separator className="bg-slate-600/50" />
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        if (typeof window !== 'undefined' && (window as any).electronAPI) {
-                          const result = await (window as any).electronAPI.checkForUpdates();
-                          if (result.updateAvailable) {
-                            toast.info(`Update available: v${result.updateInfo.version}`);
-                          } else {
-                            toast.success('You\'re already on the latest version!');
-                          }
-                        } else {
-                          toast.info('Updates are managed automatically. The app checks every 4 hours.');
-                        }
-                      }}
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700 w-full mt-1"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Check for Updates Now
-                    </Button>
-                  </div>
-                </div>
-
-                <Separator className="bg-slate-700" />
-
-                {/* Schedule Settings */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white">Scheduled Scans</h3>
-                  
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Automatic Weekly Scan</Label>
-                      <p className="text-sm text-slate-400">
-                        Run a full scan every Sunday at 2:00 AM
-                      </p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
-                    <div className="space-y-0.5">
-                      <Label className="text-white">Automatic Cleanup</Label>
-                      <p className="text-sm text-slate-400">
-                        Clean temporary files every week
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Auto-Update Notification (appears when updates are available) */}
+      {/* Auto-Update Notification */}
       <UpdateNotification />
-
-      {/* Footer */}
-      <footer className="border-t border-slate-700/50 bg-slate-900/80 mt-auto">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-400">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-emerald-400" />
-              <span>VeeShield - AI-Powered Security</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span>Definitions: v2024.03.15</span>
-              <span>•</span>
-              <span>Engine: v2.1.0</span>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
