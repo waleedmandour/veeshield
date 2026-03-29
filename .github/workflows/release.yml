@@ -1,79 +1,78 @@
-name: Release New Version
+name: Build and Release VeeShield
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version type (patch, minor, major)'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build-windows:
+    runs-on: windows-latest
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
-      - name: Configure Git
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Get current version
-        id: current_version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - name: Build Next.js
+        run: npx next build
 
-      - name: Bump version
-        run: npm version ${{ github.event.inputs.version }} -m "chore: bump version to %s"
-
-      - name: Get new version
-        id: new_version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-
-      - name: Push changes
-        run: |
-          git push origin master
-          git push --tags origin master
+      - name: Build Electron Windows Installer
+        run: npx electron-builder --win --x64 --publish never
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: v${{ steps.new_version.outputs.version }}
-          name: VeeShield v${{ steps.new_version.outputs.version }}
-          body: |
-            ## 🛡️ VeeShield v${{ steps.new_version.outputs.version }}
-            
-            ### What's Changed
-            
-            See [commits](https://github.com/waleedmandour/veeshield/compare/v${{ steps.current_version.outputs.version }}...v${{ steps.new_version.outputs.version }}) for details.
-            
-            ### Installation
-            
-            Download the Windows installer from the assets below.
-            
+          name: VeeShield-Windows-Installer
+          path: dist/*.exe
+
+      - name: Upload Windows Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: VeeShield-Windows-Portable
+          path: dist/*.zip
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows Installer
+        uses: actions/download-artifact@v4
+        with:
+          name: VeeShield-Windows-Installer
+          path: ./release-artifacts/
+
+      - name: Download Windows Portable
+        uses: actions/download-artifact@v4
+        with:
+          name: VeeShield-Windows-Portable
+          path: ./release-artifacts/
+
+      - name: List artifacts
+        run: ls -la ./release-artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./release-artifacts/*
+          generate_release_notes: true
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Summary
-        run: |
-          echo "✅ Released version: v${{ steps.new_version.outputs.version }}"
-          echo "📦 Download: https://github.com/waleedmandour/veeshield/releases/tag/v${{ steps.new_version.outputs.version }}"

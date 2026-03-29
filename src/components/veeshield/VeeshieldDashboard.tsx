@@ -5,7 +5,7 @@ import {
   Shield, ShieldCheck, ShieldAlert, ShieldX, 
   Bug, Lock, Trash2, Volume2, Settings, 
   Activity, AlertTriangle, CheckCircle2, XCircle,
-  FileSearch, HardDrive, Clock, TrendingUp
+  FileSearch, HardDrive, Clock, TrendingUp, Network
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,8 @@ import { ScanPanel } from '@/components/veeshield/ScanPanel';
 import { CleanPanel } from '@/components/veeshield/CleanPanel';
 import { ThreatList } from '@/components/veeshield/ThreatList';
 import { StatusCards } from '@/components/veeshield/StatusCards';
+import { QuarantinePanel } from '@/components/veeshield/QuarantinePanel';
+import { NetworkPanel } from '@/components/veeshield/NetworkPanel';
 
 export interface ProtectionStatus {
   status: 'protected' | 'at_risk' | 'scanning' | 'cleaning';
@@ -50,20 +52,13 @@ export function VeeshieldDashboard() {
   const handleQuickScan = useCallback(async () => {
     setProtectionStatus(prev => ({ ...prev, status: 'scanning' }));
     toast.info('Starting quick scan...');
-    
     try {
-      const response = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start_system_scan', scanType: 'quick' })
-      });
-      
-      const data = await response.json();
-      
+      const { startSystemScan } = await import('@/lib/services/scan-service');
+      const data = await startSystemScan('quick');
       if (data.success) {
         toast.success(`Scan complete! ${data.summary.threatsFound} threats found`);
-        setProtectionStatus(prev => ({ 
-          ...prev, 
+        setProtectionStatus(prev => ({
+          ...prev,
           status: 'protected',
           lastScan: new Date(),
           filesScanned: data.summary.totalScanned
@@ -78,16 +73,9 @@ export function VeeshieldDashboard() {
   const handleQuickClean = useCallback(async () => {
     setProtectionStatus(prev => ({ ...prev, status: 'cleaning' }));
     toast.info('Starting system cleanup...');
-    
     try {
-      const response = await fetch('/api/clean', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'quick_clean' })
-      });
-      
-      const data = await response.json();
-      
+      const { quickClean } = await import('@/lib/services/clean-service');
+      const data = await quickClean();
       if (data.success) {
         toast.success(`Cleaned ${data.summary.totalSpaceFreedFormatted}!`);
         setProtectionStatus(prev => ({ ...prev, status: 'protected' }));
@@ -105,11 +93,9 @@ export function VeeshieldDashboard() {
         break;
       case 'full_scan':
         toast.info('Starting full system scan...');
-        fetch('/api/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'start_system_scan', scanType: 'full' })
-        }).then(() => toast.success('Full scan completed'));
+        import('@/lib/services/scan-service').then(({ startSystemScan }) =>
+          startSystemScan('full').then(() => toast.success('Full scan completed'))
+        );
         break;
       case 'start_clean':
         handleQuickClean();
@@ -244,6 +230,20 @@ export function VeeshieldDashboard() {
               Threats
             </TabsTrigger>
             <TabsTrigger 
+              value="quarantine" 
+              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
+            >
+              <Lock className="h-4 w-4 mr-2" />
+              Quarantine
+            </TabsTrigger>
+            <TabsTrigger 
+              value="network" 
+              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
+            >
+              <Network className="h-4 w-4 mr-2" />
+              Network
+            </TabsTrigger>
+            <TabsTrigger 
               value="settings" 
               className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
             >
@@ -328,6 +328,16 @@ export function VeeshieldDashboard() {
           {/* Threats Tab */}
           <TabsContent value="threats">
             <ThreatList />
+          </TabsContent>
+
+          {/* Quarantine Tab */}
+          <TabsContent value="quarantine">
+            <QuarantinePanel />
+          </TabsContent>
+
+          {/* Network Tab */}
+          <TabsContent value="network">
+            <NetworkPanel />
           </TabsContent>
 
           {/* Settings Tab */}

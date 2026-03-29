@@ -48,13 +48,8 @@ export function ScanPanel() {
     setScanStats({ total: 0, scanned: 0, threats: 0, clean: 0 });
 
     try {
-      const response = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start_system_scan', scanType: type })
-      });
-
-      const data = await response.json();
+      const { startSystemScan } = await import('@/lib/services/scan-service');
+      const data = await startSystemScan(type);
 
       if (data.success) {
         // Simulate progress updates

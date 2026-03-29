@@ -41,13 +41,8 @@ export function CleanPanel() {
     setCleanResult(null);
 
     try {
-      const response = await fetch('/api/clean', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'scan_targets' })
-      });
-
-      const data = await response.json();
+      const { scanTargets: scanTargetsService } = await import('@/lib/services/clean-service');
+      const data = await scanTargetsService();
 
       if (data.success) {
         setTargets(data.targets);
@@ -76,20 +71,12 @@ export function CleanPanel() {
     setCleanResult(null);
 
     try {
-      const response = await fetch('/api/clean', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'start_clean',
-          options: {
-            targets: Array.from(selectedTargets),
-            deepClean,
-            secureDelete: false
-          }
-        })
+      const { startClean: startCleanService } = await import('@/lib/services/clean-service');
+      const data = await startCleanService({
+        targets: Array.from(selectedTargets),
+        deepClean,
+        secureDelete: false
       });
-
-      const data = await response.json();
 
       if (data.success) {
         for (let i = 0; i <= 100; i += 10) {

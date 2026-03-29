@@ -31,8 +31,39 @@ function createWindow() {
 
   const startUrl = isDev 
     ? 'http://localhost:3000' 
-    : `file://${path.join(__dirname, '../.next/server/app/page.html')}`;
+    : `file://${path.join(__dirname, '../out/index.html')}`;
   
+  if (!isDev) {
+    const indexPath = path.join(__dirname, '../out/index.html');
+    if (!fs.existsSync(indexPath)) {
+      const errorHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>VeeShield - Error</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .container { text-align: center; max-width: 500px; padding: 2rem; }
+            h1 { color: #ef4444; font-size: 2rem; margin-bottom: 1rem; }
+            p { color: #94a3b8; margin-bottom: 1.5rem; line-height: 1.6; }
+            code { background: #1e293b; padding: 0.5rem 1rem; border-radius: 0.5rem; color: #38bdf8; display: inline-block; font-size: 0.875rem; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>⚠ Application Error</h1>
+            <p>VeeShield failed to load. The application files could not be found.</p>
+            <p>Expected path: <code>${indexPath}</code></p>
+            <p>Please reinstall VeeShield or contact support.</p>
+          </div>
+        </body>
+        </html>
+      `;
+      mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
+      return;
+    }
+  }
+
   mainWindow.loadURL(startUrl);
 
   mainWindow.once('ready-to-show', () => {
@@ -200,6 +231,8 @@ app.on('web-contents-created', (_event, contents) => {
   contents.on('will-navigate', (event, navigationUrl) => {
     try {
       const parsedUrl = new URL(navigationUrl);
+      // Allow file:// protocol (production) and localhost (development)
+      if (parsedUrl.protocol === 'file:') return;
       const allowedOrigins = ['localhost:3000', 'localhost'];
       if (!allowedOrigins.includes(parsedUrl.host)) {
         event.preventDefault();

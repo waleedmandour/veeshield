@@ -117,14 +117,8 @@ export function VoiceAssistant({ onCommand, onClose }: VoiceAssistantProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Send to assistant API
-      const response = await fetch('/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'process_voice', transcript: text })
-      });
-
-      const data = await response.json();
+      const { processVoice } = await import('@/lib/services/assistant-service');
+      const data = await processVoice(text);
 
       if (data.success) {
         // Add assistant response

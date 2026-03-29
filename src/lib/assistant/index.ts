@@ -193,13 +193,11 @@ const RESPONSE_TEMPLATES: Record<string, string[]> = {
     "Starting a quick scan of critical areas. This will take just a minute.",
     "Quick scan initiated. I'm checking the most common threat locations."
   ],
-  full_scan: {
-    positive: [
-      "Starting a full system scan. This may take several minutes to complete.",
-      "Initiating comprehensive system scan. I'll thoroughly check all files and folders.",
-      "Full scan started. I'm examining your entire system for any threats."
-    ]
-  },
+  full_scan: [
+    "Starting a full system scan. This may take several minutes to complete.",
+    "Initiating comprehensive system scan. I'll thoroughly check all files and folders.",
+    "Full scan started. I'm examining your entire system for any threats."
+  ],
   start_clean: [
     "I'll clean up unnecessary files to free up space. This won't affect your personal data.",
     "Starting system cleanup. I'll remove temporary files and optimize your disk space.",
@@ -344,7 +342,7 @@ export function generateResponse(intent: string, context?: Record<string, unknow
     
     case 'full_scan':
       return {
-        text: getRandomResponse(RESPONSE_TEMPLATES.full_scan.positive),
+        text: getRandomResponse(RESPONSE_TEMPLATES.full_scan),
         action: 'full_scan',
         data: { scanType: 'full' }
       };
