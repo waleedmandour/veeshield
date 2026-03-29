@@ -1,6 +1,6 @@
 {
   "name": "veeshield",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI-Powered Security Suite for Windows 11 with voice assistant 'Hey Vee'",
   "author": "Waleed Mandour",
   "license": "MIT",
@@ -48,7 +48,9 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.0",
     "zod": "^3.23.0",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "electron-updater": "^6.3.9",
+    "electron-log": "^5.2.4"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
@@ -68,6 +70,7 @@
   "build": {
     "appId": "com.veeshield.app",
     "productName": "VeeShield",
+    "copyright": "Copyright © 2024 Waleed Mandour",
     "directories": {
       "output": "dist"
     },
@@ -78,18 +81,43 @@
       "node_modules/**/*",
       "package.json"
     ],
+    "extraFiles": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "waleedmandour",
+      "repo": "veeshield"
+    },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "certificateFile": null,
+      "signingHashAlgorithms": ["sha256"],
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "perMachine": false,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "VeeShield",
+      "uninstallDisplayName": "VeeShield",
+      "deleteAppDataOnUninstall": false
     }
   }
 }

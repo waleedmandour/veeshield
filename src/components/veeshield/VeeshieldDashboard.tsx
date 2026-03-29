@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { 
   Shield, ShieldCheck, ShieldAlert, ShieldX, 
   Bug, Lock, Trash2, Volume2, Settings, 
   Activity, AlertTriangle, CheckCircle2, XCircle,
-  FileSearch, HardDrive, Clock, TrendingUp, Network
+  FileSearch, HardDrive, Clock, TrendingUp, Network, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,7 @@ import { ThreatList } from '@/components/veeshield/ThreatList';
 import { StatusCards } from '@/components/veeshield/StatusCards';
 import { QuarantinePanel } from '@/components/veeshield/QuarantinePanel';
 import { NetworkPanel } from '@/components/veeshield/NetworkPanel';
+import { UpdateNotification } from '@/components/veeshield/UpdateNotification';
 
 export interface ProtectionStatus {
   status: 'protected' | 'at_risk' | 'scanning' | 'cleaning';
@@ -48,6 +49,14 @@ export function VeeshieldDashboard() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
+  const [appVersion] = useState('1.1.0');
+
+  // Get app version from Electron if available
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+      (window as any).electronAPI.getAppVersion().then((v: string) => setAppVersion(v));
+    }
+  }, []);
 
   const handleQuickScan = useCallback(async () => {
     setProtectionStatus(prev => ({ ...prev, status: 'scanning' }));
@@ -182,7 +191,7 @@ export function VeeshieldDashboard() {
                 variant="outline" 
                 className="border-emerald-500/50 text-emerald-400"
               >
-                v1.0.0
+                v{appVersion}
               </Badge>
             </div>
           </div>
@@ -437,6 +446,84 @@ export function VeeshieldDashboard() {
 
                 <Separator className="bg-slate-700" />
 
+                {/* Update Settings */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5" />
+                    Application Updates
+                  </h3>
+
+                  <div className="p-4 bg-slate-700/30 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-white">Current Version</Label>
+                        <p className="text-sm text-slate-400">VeeShield v{appVersion}</p>
+                      </div>
+                      <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Up to date
+                      </Badge>
+                    </div>
+
+                    <Separator className="bg-slate-600/50" />
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-white">Auto-check for Updates</Label>
+                        <p className="text-sm text-slate-400">
+                          Check every 4 hours and download silently
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-white">Install on Quit</Label>
+                        <p className="text-sm text-slate-400">
+                          Apply updates automatically when VeeShield closes
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-white">Allow Pre-release Versions</Label>
+                        <p className="text-sm text-slate-400">
+                          Receive beta and dev builds for early testing
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+
+                    <Separator className="bg-slate-600/50" />
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (typeof window !== 'undefined' && (window as any).electronAPI) {
+                          const result = await (window as any).electronAPI.checkForUpdates();
+                          if (result.updateAvailable) {
+                            toast.info(`Update available: v${result.updateInfo.version}`);
+                          } else {
+                            toast.success('You\'re already on the latest version!');
+                          }
+                        } else {
+                          toast.info('Updates are managed automatically. The app checks every 4 hours.');
+                        }
+                      }}
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700 w-full mt-1"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Check for Updates Now
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700" />
+
                 {/* Schedule Settings */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">Scheduled Scans</h3>
@@ -466,6 +553,9 @@ export function VeeshieldDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Auto-Update Notification (appears when updates are available) */}
+      <UpdateNotification />
 
       {/* Footer */}
       <footer className="border-t border-slate-700/50 bg-slate-900/80 mt-auto">
