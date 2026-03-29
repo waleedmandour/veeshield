@@ -49,7 +49,7 @@ export function VeeshieldDashboard() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
-  const [appVersion] = useState('1.1.0');
+  const [appVersion, setAppVersion] = useState('1.1.0');
 
   // Get app version from Electron if available
   useEffect(() => {

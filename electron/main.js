@@ -340,7 +340,6 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = true; // Install when user closes app
   autoUpdater.allowPrerelease = false;      // Only stable releases
   autoUpdater.allowDowngrade = false;       // Don't go backwards
-  autoUpdater.downloadUpdate = true;       // Use built-in download with progress
   autoUpdater.logger = log;
 
   log.info(`Current version: ${app.getVersion()}`);

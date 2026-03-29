@@ -104,8 +104,6 @@
         }
       ],
       "icon": "public/icon.ico",
-      "certificateFile": null,
-      "signingHashAlgorithms": ["sha256"],
       "verifyUpdateCodeSignature": false
     },
     "nsis": {
